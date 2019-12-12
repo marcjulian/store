@@ -71,6 +71,29 @@ export class NgxsStoragePlugin implements NgxsPlugin {
           } else {
             state = { ...state, ...val };
           }
+        } else {
+          if (this._options.migrations) {
+            if (isMaster) {
+              val = state;
+            } else {
+              val = getValue(state, key);
+            }
+
+            this._options.migrations.forEach(strategy => {
+              const versionMatch =
+                strategy.version === getValue(val, strategy.versionKey || 'version');
+              const keyMatch = (!strategy.key && isMaster) || strategy.key === key;
+              if (versionMatch && keyMatch) {
+                val = strategy.migrate(val);
+                hasMigration = true;
+              }
+            });
+            if (!isMaster) {
+              state = setValue(state, key!, val);
+            } else {
+              state = { ...state, ...val };
+            }
+          }
         }
       }
     }
